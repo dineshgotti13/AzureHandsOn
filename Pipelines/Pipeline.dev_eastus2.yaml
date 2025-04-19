@@ -1,0 +1,287 @@
+trigger:
+  branches:
+    include:
+      - users/*
+  paths:
+    include:
+      - /kits/jumpstart-windows-vm/*
+    exclude:
+      - /**/*.md
+      - /secret/*.*
+      - /.attachments
+
+variables:
+  - template: Variables.yaml
+
+pool: $(agent_pool)
+
+stages:
+  - template: ./Layers.yaml
+    parameters:
+      environment: dev_eastus2
+      layers:
+        - name: resourcegroup
+          type: resourcegroup
+          version: "1.1.0"
+          skip: false
+          provider: terraform
+          destroy: false
+
+        - name: applicationsecuritygroup
+          type: applicationsecuritygroup
+          version: "1.1.0"
+          skip: false
+          provider: terraform
+          destroy: false
+          dependencies:
+            resourcegroup: resourcegroup
+
+        - name: networking
+          type: networking
+          version: "1.1.0"
+          skip: false
+          provider: terraform
+          destroy: false
+          dependencies:
+            resourcegroup: resourcegroup
+
+        - name: networksecuritygroup
+          type: networksecuritygroup
+          version: "1.1.0"
+          skip: false
+          provider: terraform
+          destroy: false
+          dependencies:
+            networking: networking
+            applicationsecuritygroup: applicationsecuritygroup
+
+        - name: keyvault
+          type: keyvault
+          version: "2.1.0"
+          skip: false
+          provider: terraform
+          destroy: false
+          dependencies:
+            resourcegroup: resourcegroup
+
+        - name: adoprivateendpoints
+          type: adoprivateendpoints
+          version: "1.1.0"
+          skip: false
+          provider: terraform
+          destroy: false
+          dependencies:
+            keyvault: keyvault
+
+        - name: loganalytics
+          type: loganalytics
+          version: "1.1.0"
+          skip: false
+          provider: terraform
+          destroy: false
+          dependencies:
+            keyvault: keyvault
+            adoprivateendpoints: adoprivateendpoints
+
+        - name: storage
+          type: storage
+          version: "1.1.0"
+          skip: false
+          provider: terraform
+          destroy: false
+          dependencies:
+            keyvault: keyvault
+            adoprivateendpoints: adoprivateendpoints
+
+        - name: nsgflowlogs
+          type: nsgflowlogs
+          version: "2.1.0"
+          skip: false
+          provider: terraform
+          destroy: false
+          dependencies:
+            networksecuritygroup: networksecuritygroup
+            storage: storage
+            loganalytics: loganalytics
+
+        - name: azsql
+          type: azsql
+          version: "1.2.0"
+          skip: false
+          provider: terraform
+          destroy: false
+          dependencies:
+            keyvault: keyvault
+            adoprivateendpoints: adoprivateendpoints
+            storage: storage
+
+        - name: loadbalancer
+          type: loadbalancer
+          version: "1.4.0"
+          skip: false
+          forcerun: true
+          provider: terraform
+          destroy: false
+          dependencies:
+            networking: networking
+
+        - name: privatelinkservice
+          type: privatelinkservice
+          version: "1.1.0"
+          skip: false
+          provider: terraform
+          destroy: false
+          dependencies:
+            networking: networking
+            loadbalancer: loadbalancer
+
+        - name: applicationgateway
+          type: applicationgateway
+          version: "1.1.0"
+          skip: false
+          provider: terraform
+          destroy: false
+          dependencies:
+            resourcegroup: resourcegroup
+            networking: networking
+
+        - name: recoveryservicesvault
+          type: recoveryservicesvault
+          version: "1.1.0"
+          skip: false
+          provider: terraform
+          destroy: false
+          dependencies:
+            resourcegroup: resourcegroup
+
+        - name: privateendpoints
+          type: privateendpoints
+          version: "1.3.0"
+          skip: false
+          provider: terraform
+          destroy: false
+          dependencies:
+            networking: networking
+            keyvault: keyvault
+            storage: storage
+            azsql: azsql
+
+        - name: privatednszone
+          type: privatednszone
+          version: "1.1.0"
+          skip: false
+          provider: terraform
+          destroy: false
+          dependencies:
+            networking: networking
+
+        - name: privatednsrecords
+          type: privatednsrecords
+          version: "1.2.0"
+          skip: false
+          provider: terraform
+          destroy: false
+          dependencies:
+            privatednszone: privatednszone
+            privateendpoints: privateendpoints
+
+        - name: azuremonitor
+          type: azuremonitor
+          version: "1.1.0"
+          skip: false
+          provider: terraform
+          destroy: false
+          dependencies:
+            resourcegroup: resourcegroup
+            storage: storage
+            loganalytics: loganalytics
+
+        - name: vm_alerts
+          type: vm_alerts
+          version: "1.1.0"
+          skip: false
+          provider: terraform
+          destroy: false
+          dependencies:
+            resourcegroup: resourcegroup
+            loganalytics: loganalytics
+            azuremonitor: azuremonitor
+
+        - name: vm_dashboards
+          type: vm_dashboards
+          version: "1.1.0"
+          skip: false
+          provider: terraform
+          destroy: false
+          dependencies:
+            resourcegroup: resourcegroup
+            loganalytics: loganalytics
+
+        - name: vm_workbooks
+          type: vm_workbooks
+          version: "1.1.0"
+          skip: false
+          provider: terraform
+          destroy: false
+          dependencies:
+            resourcegroup: resourcegroup
+            loganalytics: loganalytics
+
+        - name: diagnosticlogs
+          type: diagnosticlogs
+          version: "1.2.0"
+          skip: false
+          provider: terraform
+          destroy: false
+          dependencies:
+            storage: storage
+            loganalytics: loganalytics
+            applicationgateway: applicationgateway
+            keyvault: keyvault
+            azsql: azsql
+
+        - name: windowsvirtualmachine
+          type: windowsvirtualmachine
+          version: "1.2.0"
+          skip: false
+          provider: terraform
+          destroy: false
+          dependencies:
+            loadbalancer: loadbalancer
+            storage: storage
+            keyvault: keyvault
+            adoprivateendpoints: adoprivateendpoints
+            applicationgateway: applicationgateway
+            recoveryservicesvault: recoveryservicesvault
+            applicationsecuritygroup: applicationsecuritygroup
+
+        - name: windowsvirtualmachineextension
+          type: windowsvirtualmachineextension
+          version: "1.1.0"
+          skip: false
+          provider: terraform
+          destroy: false
+          dependencies:
+            resourcegroup: resourcegroup
+            storage: storage
+            loganalytics: loganalytics
+            windowsvirtualmachine: windowsvirtualmachine
+
+#        - name: domainjoin
+#          type: domainjoin
+#          version: "1.0.0"
+#          skip: true
+#          destroy: false
+#          dependencies:
+#            windowsvirtualmachine: windowsvirtualmachine
+#            windowsvirtualmachineextension: windowsvirtualmachineextension
+
+        - name: windowsvirtualmachinecustomextension
+          type: windowsvirtualmachinecustomextension
+          version: "1.0.0"
+          skip: false
+          provider: terraform
+          destroy: false
+          dependencies:
+            windowsvirtualmachine: windowsvirtualmachine
+            windowsvirtualmachineextension: windowsvirtualmachineextension

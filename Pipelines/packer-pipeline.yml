@@ -1,0 +1,75 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger: none
+
+variables:
+  - template: Variables.yaml
+  # - template: Variables.${{ parameters.env }}.yaml
+
+# pool: $(agent_pool)
+
+jobs:
+- job: myJob
+  timeoutInMinutes: 200
+  pool: $(agent_pool)
+  # steps:
+  # - bash: echo "Hello world"
+
+  steps:
+  - script: echo Hello, world!
+    displayName: 'Run a one-line script'
+
+  - task: UniversalPackages@0
+    # condition: succeeded()
+    displayName: 'Download Universal Artifact'
+    inputs:
+      command: download
+      vstsFeed: '13099-ELVIS/elvis'   # REPLACE
+      vstsFeedPackage: sql_file
+      vstsPackageVersion: '*'
+      downloadDirectory: $(Build.ArtifactStagingDirectory)
+
+  # - script: |
+  #     echo Add other tasks to build, test, and deploy your project.
+  #     echo See https://aka.ms/yaml
+  #     packer --version
+  #     packer build -var 'artifact_zip_path=$(Build.ArtifactStagingDirectory)' \
+  #       -var "client_id=$servicePrincipalId" \
+  #       -var "client_secret=$servicePrincipalKey" \
+  #       -var "tenant_id=$tenantId" \
+  #       Pipelines/Packer.json
+  #   displayName: 'Run a multi-line script'
+
+  - task: AzureCLI@2
+    displayName: Build Custom Image
+    # timeoutInMinutes: 200
+    inputs:
+      azureSubscription: 13099-NPROD-SC
+      addSpnToEnvironment: true
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        sub_id=$(az account show --query id --out tsv)
+        ls -la $(Build.ArtifactStagingDirectory)
+        packer build -var 'artifact_zip_path=$(Build.ArtifactStagingDirectory)' \
+          -var "client_id=$servicePrincipalId" \
+          -var "client_secret=$servicePrincipalKey" \
+          -var "tenant_id=$tenantId" \
+          Pipelines/Packer.json
+
+
+        
+  # packer build -var-file=${{ parameters.packer_variables_path }} \
+  #           -var "client_id=$servicePrincipalId" \
+  #           -var "client_secret=$servicePrincipalKey" \
+  #           -var "tenant_id=$tenantId" \
+  #           -var "subscription_id=$sub_id" \
+  #           -var 'dest_sig_rg=${{ parameters.dest_sig_rg }}' \
+  #           -var 'dest_sig=${{ parameters.dest_sig }}' \
+  #           -var 'dest_sig_definition=${{ parameters.dest_sig_definition }}' \
+  #           -var 'dest_sig_version=0.0.20210215' \
+  #           -var 'artifact_zip_path=${{ parameters.download_artifact_dir }}' \
+  #           ${{ parameters.packer_path }}

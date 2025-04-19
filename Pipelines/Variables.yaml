@@ -1,0 +1,69 @@
+variables:
+  - name: motsId
+    value: 13099                               # <--- CHANGE TO APPLICATION MOTSID
+  - name: agent_pool
+    value: elvis-test
+    # value: 9564agents
+    # value: 13099agents
+  - name: projectName
+    value: "Elvis"                        # <--- CHANGE TO YOUR ADO PROJECT NAME
+  - name: pipelineId
+    value: 207
+  - name: preferTriggeringPipeline
+    value: true
+  - name: downloadPath
+    value: $(Build.ArtifactStagingDirectory)
+  - name: runVersion
+    value: latestFromBranch
+  - name: runBranch
+    value: refs/heads/master
+  - name: basedOnStratumKitName                 # Only needed when running kit from Stratum
+    value: jumpstart-windows-vm
+  - name: artifactFeedCredentials               # PAT based service connection to Azure Artifacts feed
+    value: "ACC-Azure-00 Stratum Feed"
+  - name: artifactFeed
+    value: "Stratum"
+  - name: kitPath
+    value: "."
+  - name: useMsi
+    value: "true"
+
+
+   #custom variables
+  - name: app_acronym
+    value: "elvis"
+  - name: creator_name
+    value: "sf285x@intl.att.com"
+  - name: contact_dl
+    value: "IL-CLOUD-DEVOPS@list.att.com"
+
+  # - name: ado_agent_id
+  #   value: "70d8f95a-5d2e-4b9a-b4c3-9d9b7ce3da1f"
+  # - name: sub_id
+  #   value: "c6bfec31-c52a-4c59-a60c-25dbbb69876a"
+  # - name: tenant_id
+  #   value: "e741d71c-c6b6-47b0-803c-0f3b32b07556"
+  # - name: ado_sub_id
+  #   value: "c6bfec31-c52a-4c59-a60c-25dbbb69876a"
+  - name: ado_rg_name
+    value: "13099-eastus2-devops-rg"
+  - name: ado_vnet_name
+    value: "13099-eastus2-devops-vnet"
+  - name: ado_subnet_name
+    value: "13099-eastus2-base-snet"
+  - name: app_vm_size
+    value: "Standard_DS1_v2"
+  - name: ado_key_vault_name
+    value: "devops-kv-13099"
+  - name: ado_subscription_id
+    value: "541dad25-6691-4298-863d-fac87a98d478"
+  - name: ado_storage_account_name
+    value: "13099devopsstatt"
+  # - name: app_vm_disk_size
+  #   value: "64"
+  # - name: managed_disk_type
+  #   value: "Standard_LRS"
+  # - name: app_image_version
+  #   value: "0.0.2021013180"
+  # - name: jump_image_version
+  #   value: "2.2863.20201028"

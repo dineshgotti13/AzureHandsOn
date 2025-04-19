@@ -1,0 +1,61 @@
+trigger:
+  branches:
+    include:
+      - users/*
+  paths:
+    include:
+      - /kits/jumpstart-validator/*
+    exclude:
+      - /**/*.md
+      - /secret/*.*
+      - /.attachments
+
+variables:
+  - template: Variables.yaml
+  - template: Variables.${{ parameters.environment }}.yaml
+
+parameters:
+  - name: environment
+    type: string
+    displayName: "The name of the environment (ex. dev, prod )"
+    values:
+    - "dev"
+    - "prodDR"
+    - "prod"
+
+pool: $(agent_pool)
+
+stages:
+  - template: ./Layers-validator.yaml
+    parameters:
+      environment: ${{ parameters.environment }}
+      layers:
+        - name: naming
+          type: validation
+          version: "1.0.11"
+          provider: pester
+          skip: false
+        
+        - name: networking
+          type: validation
+          version: "1.0.11"
+          provider: pester
+          skip: false
+
+        - name: locationandtags
+          type: validation
+          version: "1.0.11"
+          provider: pester
+          skip: false
+
+        - name: monitoring
+          type: validation
+          version: "1.0.11"
+          provider: pester
+          skip: false
+        
+        - name: computeandpaas
+          type: validation
+          version: "1.0.11"
+          provider: pester
+          skip: false

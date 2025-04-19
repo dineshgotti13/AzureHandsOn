@@ -1,0 +1,116 @@
+parameters:
+  - name: environment
+    type: string
+    displayName: "The name of the environment (ex. dev, prod )"
+
+  - name: layers
+    type: object
+    displayName: "A layer object"
+
+# Since all stages are generated and set a dependency, a start stage exists with no dependencies so that the first dynamic stage can
+# depend on this.  "You must have at least one stage without dependencies"
+
+stages:
+  # Create a stage for each layer's validation process.
+  - ${{ each validationlayer in parameters.layers }}:
+    - ${{ if and( eq( validationlayer.provider, 'terraform'), contains( validationlayer.skip, false)) }}:
+      - stage: skipvalidation
+        displayName: "Set Skip Validation True"
+        jobs:
+        - job: check_skip_validation
+          steps:
+            - script: |
+                echo "True" > "$(Build.ArtifactStagingDirectory)/skipValidation.txt"
+              displayName: "Set Skip Validation to true"
+              name: skipValidation
+            - task: PublishPipelineArtifact@1
+              inputs:
+                path: "$(Build.ArtifactStagingDirectory)/skipValidation.txt"
+                artifactName: "skipValidation"
+    - ${{ if eq( validationlayer.provider, 'pester') }}:
+      - stage: ${{ validationlayer.name }}_${{ parameters.environment}}_validation
+        displayName: ${{ validationlayer.name }} - ${{ parameters.environment }} - Validation
+        variables:
+          - template: ./Variables.${{ parameters.environment }}.yaml
+        jobs:
+          - job: ${{ validationlayer.name }}
+            steps:
+              - bash: echo This exists to have a non-dynamic job in the stage without dependencies
+          - job: check_skip_validation
+            steps:
+              - task: DownloadPipelineArtifact@2
+                displayName: "Download Skip Validation Artifact"
+                continueOnError: true
+                inputs:
+                  buildType: "current"
+                  artifactName: "skipValidation"
+                  targetPath: "$(System.ArtifactsDirectory)"
+              - script: |
+                  skipValidation=$(cat '$(System.ArtifactsDirectory)/skipValidation.txt')
+                  echo "##vso[task.setvariable variable=skipValidation;isOutput=true]$skipValidation"
+                  echo $skipValidation
+                displayName: "Apply skip Validation check"
+                name: skipValidationResult
+          - ${{ if contains( validationlayer.skip, false) }}:
+              - deployment:
+                displayName: "${{ validationlayer.name }}-Validation"
+                environment: ${{ parameters.environment}}
+                dependsOn: check_skip_validation
+                continueOnError: true
+                condition: ne(dependencies.check_skip_validation.outputs['skipValidationResult.skipValidation'], 'True')
+                strategy:
+                  runOnce:
+                    deploy:
+                      steps: 
+                        - task: UniversalPackages@0
+                          displayName: "layer-${{ validationlayer.provider }}"
+                          inputs:
+                            command: "download"
+                            downloadDirectory: "$(System.DefaultWorkingDirectory)/layer-${{ validationlayer.provider }}"
+                            feedsToUse: "external"
+                            externalFeedCredentials: $(artifactFeedCredentials)
+                            feedDownloadExternal: $(artifactFeed)
+                            packageDownloadExternal: layer-${{ validationlayer.provider }}
+                            versionDownloadExternal: ${{ validationlayer.version }}
+                        - task: AzureCLI@2
+                          displayName: "Get Service Principal Variables"
+                          inputs: 
+                            azureSubscription: '${{ variables.serviceConnectionApp }}'
+                            scriptType: 'bash'
+                            scriptLocation: 'inlineScript'
+                            inlineScript: |
+                              echo "##vso[task.setvariable variable=PesterSPNID]$servicePrincipalId"
+                              echo "##vso[task.setvariable variable=PesterSPNPass]$servicePrincipalKey"
+                              echo "##vso[task.setvariable variable=PesterSPNTenantID]$tenantId"
+                            addSpnToEnvironment: true
+                        - task: qetza.replacetokens.replacetokens-task.replacetokens@3
+                          displayName: 'Replace tokens in **/*.ps1'
+                          inputs:
+                            targetFiles: '**/*.ps1'
+                            tokenPrefix: '__'
+                            tokenSuffix: '__'
+                        - task: AzurePowerShell@5
+                          displayName: "layer-${{ validationlayer.type }}-${{ validationlayer.Name }}"
+                          enabled: true
+                          inputs:
+                            azureSubscription: '${{ variables.serviceConnectionApp }}'
+                            scriptType: "inlineScript"
+                            inline: |
+                              $testScriptsPath = '$(System.DefaultWorkingDirectory)/layer-${{ validationlayer.provider }}/${{ validationlayer.Name }}.ps1'
+                              Write-Output "Test Script Path - $testScriptsPath"
+                              $testResultsFile = Join-Path -Path $(System.DefaultWorkingDirectory) -ChildPath '$(motsId).${{ validationlayer.Name }}.integration.xml'
+                              Write-Output "Test Results File - $testResultsFile"
+                              Invoke-Pester @{path = $testScriptsPath;OutputFormat = 'NUnitXml';PassThru = $true;ExcludeTag = 'Incomplete'} -OutputFile $testResultsFile
+                            azurePowerShellVersion: "latestVersion"
+                            errorActionPreference: 'stop'
+                            failOnStandardError: true
+                        - task: PublishTestResults@2
+                          displayName: "layer-${{ validationlayer.type }}-${{ validationlayer.Name }}-Publish"
+                          enabled: true
+                          inputs:
+                            # Make sure to use the 'NUnit' test runner
+                            testRunner: "NUnit" # !!!
+                            testResultsFiles: "**/$(motsId).${{ validationlayer.Name }}.integration.xml" 
+                            testRunTitle: "$(motsId) ${{ validationlayer.Name }} Validation Dashboard"
+                            # Make the whole pipeline fail if a test is failed
+                            failTaskOnFailedTests: true

@@ -1,0 +1,39 @@
+variables:
+  - name: serviceConnectionApp
+    value: 13099-PROD-SC # <--- CHANGE TO DEVOPS SERVICE CONNECTION NAME
+
+  # Terraform Backend Setup
+  - name: backendResourceGroupName
+    value: $(motsId)-eastus2-devops-rg
+  - name: backendStorageAccountName
+    value: $(motsId)devopsstattprod
+  - name: backendContainerName
+    value: jstart-windowsvm-prod-eastus2-01
+
+  # Jumpstart Kit variables
+  - name: region
+    value: eastus2
+  - name: env_name
+    value: prod
+  - name: identifier 
+    value: "01"
+  - name: subscriptionID
+    value: "777c9188-c357-43f9-8863-fe73cae6ea61"
+  - name: tenantID
+    value: "e741d71c-c6b6-47b0-803c-0f3b32b07556"
+  - name: win_vm_name
+    value: "ACE2P13099SQ001"
+  - name: bastion_http_proxy
+    value: "/subscriptions/7eb51ca3-6c6a-4b62-a476-763c7d336385/resourceGroups/cnxs03-eastus2-lb-rg-001/providers/Microsoft.Network/privateLinkServices/30050-cnxs03-eastus2-001-proxy-pls"
+  - name: bastion_binary_proxy
+    value: "/subscriptions/7eb51ca3-6c6a-4b62-a476-763c7d336385/resourceGroups/cnxs03-eastus2-lb-rg-001/providers/Microsoft.Network/privateLinkServices/30050-cnxs03-eastus2-001-proxy-pls"
+  - name: vnet_peering_name
+    value: "eastus2-13099-test-vnet"
+  - name: subnet_peering_name
+    value: "snet-1"
+  - name: networking_resource_group
+    value: "elvis-eastus2-test-rg"
+  - name: disk_encryption_set_name
+    value: "desknew04022022"
+  - name: address_space
+    value: "10.252.31.0/26"

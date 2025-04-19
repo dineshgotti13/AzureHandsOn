@@ -1,0 +1,90 @@
+{
+  "variables": {
+    "client_id": "",
+    "client_secret": "",
+    "tenant_id": "",
+    "subscription_id": "541dad25-6691-4298-863d-fac87a98d478",
+    "dest_sig_rg": "13099-eastus2-devops-rg",
+    "dest_sig": "13099eastus2devopssig",
+    "dest_sig_definition": "elvis_server",
+    "dest_sig_version": "0.0.20210318",
+    "artifact_zip_path": "",
+    "base_sig_subid": "b1af8825-0fde-44a1-9ebf-63d5bd0410e4",
+    "base_sig_rg": "att-golden-images",
+    "base_sig": "ATT_Shared_Images",
+    "base_sig_definition": "WindowsServer-2019",
+    "base_sig_version": "0.0.20210209",
+    "location": "eastus2",
+    "virtual_network_resource_group_name": "13099-eastus2-devops-rg",
+    "virtual_network_name": "13099-eastus2-devops-vnet",
+    "virtual_network_subnet_name": "13099-eastus2-packer-snet",
+    "managed_image_resource_group_name": "13099-eastus2-devops-rg",
+    "os_type": "Windows",
+    "vm_size": "Standard_D2_v2",
+    "disk_additional_size": "",
+    "os_disk_size_gb": ""
+  },
+  "sensitive-variables": [
+    "client_id",
+    "client_secret"
+  ],
+  "builders": [
+    {
+      "type": "azure-arm",
+      
+      "client_id": "{{user `client_id`}}",
+      "client_secret": "{{user `client_secret`}}",
+      "tenant_id": "{{user `tenant_id`}}",
+      "subscription_id": "{{user `subscription_id`}}",
+
+      "shared_image_gallery": {
+        "subscription": "{{user `base_sig_subid`}}",
+        "resource_group": "{{user `base_sig_rg`}}",
+        "gallery_name": "{{user `base_sig`}}",
+        "image_name": "{{user `base_sig_definition`}}",
+        "image_version": "{{user `base_sig_version`}}"
+      },
+      "shared_image_gallery_destination": {
+        "resource_group": "{{user `dest_sig_rg`}}",
+        "gallery_name": "{{user `dest_sig`}}",
+        "image_name": "{{user `dest_sig_definition`}}",
+        "image_version": "{{user `dest_sig_version`}}",
+        "replication_regions": [
+          "{{user `location`}}"
+        ]
+      },
+      "virtual_network_resource_group_name": "{{user `virtual_network_resource_group_name`}}",
+      "virtual_network_name": "{{user `virtual_network_name`}}",
+      "virtual_network_subnet_name": "{{user `virtual_network_subnet_name`}}",
+      "managed_image_resource_group_name": "{{user `managed_image_resource_group_name`}}",
+      "managed_image_name": "temp{{user `dest_sig_definition`}}{{user `dest_sig_version`}}",
+      "async_resourcegroup_delete": true,
+      "os_type": "{{user `os_type`}}",
+      "location": "{{user `location`}}",
+      "vm_size": "{{user `vm_size`}}",
+      "communicator": "winrm",
+      "winrm_use_ssl": true,
+      "winrm_insecure": true,
+      "winrm_timeout": "5m",
+      "winrm_username": "packer"
+    }
+  ],
+  "provisioners": [{
+    "type": "file",
+    "source": "{{user `artifact_zip_path`}}/sql_files.zip",
+    "destination": "C:\\",
+    "timeout": "180m"
+  },
+    {
+    "type": "powershell",
+    "inline": [
+      "ls C:\\",
+      "Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))",
+      "Add-WindowsFeature Web-Server",
+      "while ((Get-Service RdAgent).Status -ne 'Running') { Start-Sleep -s 5 }",
+      "while ((Get-Service WindowsAzureGuestAgent).Status -ne 'Running') { Start-Sleep -s 5 }",
+      "& $env:SystemRoot\\System32\\Sysprep\\Sysprep.exe /oobe /generalize /quiet /quit",
+      "while($true) { $imageState = Get-ItemProperty HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\State | Select ImageState; if($imageState.ImageState -ne 'IMAGE_STATE_GENERALIZE_RESEAL_TO_OOBE') { Write-Output $imageState.ImageState; Start-Sleep -s 10  } else { break } }"
+    ]
+  }]
+}
